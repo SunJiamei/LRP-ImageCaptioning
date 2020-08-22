@@ -54,8 +54,17 @@ An example of the LRP explanation result is shown as follow.
 
 
 
-### To fine tune the model with LRP inference
+### To Fine-tune the Model with LRP Inference
 The LRP-inference model is defined in [./models/model.py](./models/model.py). 
+
+### To Evaluate the Explanations
+##### Evaluating the correlation of the explanation scores and the location of object words
+Please refer the examples in [evaluate_bbox.py](evaluate_bbox.py). This will generate the *correctness* score of different explanation scores.
+To run the code, we need to download the [COCOvalEntities.json](https://drive.google.com/file/d/1ygSGtJ79FyocW-QshgeuIEQlu24QgF0x/view?usp=sharing) file
+ and specify the path in the code.
+##### Evaluating the mPA of frequent predicted object words.
+Please refer the examples in [exaimin_word.py](exaimin_word.py) which calculate the mean average precision of the frequent predicted object words.
+This file also contains functions that calculate the ROC curves and AUC scores for the frequent pedicted words. 
 
 
 Acknowledgement
