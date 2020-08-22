@@ -6,7 +6,7 @@ With this repo, we can
 2. Explain image captioning models with LRP, GradCAM, and Guided-GradCAM.
 3. Finetune pre-trained image captioning models with LRP inference to reduce object hallucination. 
 
-### Requirement
+### Requirements
 python3.5 
 keras>=2.2.4
 
@@ -42,11 +42,11 @@ We already provide the `bert` folder. Then run the [inference.py](inference.py) 
 ### To Explain Image Captioning Models
 We provide LRP, GradCAM, Guided-GradCAM, and Gradient*Input to explain the image captioning models. These explanation methods are defined in [explainers.py](./models/explainers.py).
 
-There are two stages of explanation. We first explain the decoder to get the explanation of each proceeding words and the CNN encoded image features.
+There are two stages for explanation. We first explain the decoder to get the explanation of each proceeding words and the CNN encoded image features.
 We then refer to the repo [iNNvestigate](https://github.com/albermax/innvestigate.git) to explain the CNN image encoder.
 
 To predict a caption of a test image and explain the predictions, please refer the example code in [explain_image.py](explain_image.py).
-![](example_images/sport.png)
+![](example_images/sport.png) 
 
 ![](example_images/sport_sentence.png)
 
