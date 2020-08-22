@@ -1,9 +1,8 @@
 import json
 import os
 import re
-import io_utils
+from models import io_utils
 import config
-import numpy as np
 from collections import defaultdict, namedtuple
 from itertools import *
 from math import ceil
@@ -11,8 +10,6 @@ from copy import copy
 from operator import attrgetter
 from preprocessors import  ImagePreprocessor, CaptionPreprocessorAttention
 import xml.etree.ElementTree as ET
-import csv
-import pickle
 
 '''Load the dataset as the format of Data_format including training set, val set and test set'''
 Data_format = namedtuple('Datum', 'img_filename img_path caption_txt all_captions_txt')
@@ -239,7 +236,7 @@ class Flickr30kCategory(object):
 
 
 class Dataset(object):
-    _DATASET_DIR_NAME = 'dataset'
+    _DATASET_DIR_NAME = '../dataset'
     _TRAINING_RESULTS_DIR_NAME = 'training-results'
 
     def __init__(self, dataset_name, lemmatize_caption=False, single_caption=False):

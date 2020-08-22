@@ -1,9 +1,9 @@
-from model import *
-from preparedataset import *
+from models.model import *
+from models.preparedataset import *
 import sys
-import io_utils
-from callbacks import (LogLearningRate, LogMetrics, LogTimestamp,
-                        StopAfterTimedelta, StopWhenValLossExploding)
+from models import io_utils
+from models.callbacks import (LogLearningRate, LogMetrics, LogTimestamp,
+                              StopAfterTimedelta, StopWhenValLossExploding)
 from keras.callbacks import (CSVLogger, EarlyStopping, ModelCheckpoint,
                              ReduceLROnPlateau, LearningRateScheduler)
 import glob

@@ -1735,7 +1735,7 @@ if __name__ == '__main__':
     flickr_config = config.FlickrConfig()
     flickr_config.batch_size=1
     dataset = Flickr30kDataset(flickr_config,single_caption=True)
-    training_dir = './results/flickr30k/training-results/flickr_VGG16_gridTD_attention/'
+    training_dir = '../results/flickr30k/training-results/flickr_VGG16_gridTD_attention/'
     # training_dir = './results/flickr30k/training-results/flickr_VGG16_adaptive_attention/'
     model_weight_path = os.path.join(training_dir, 'keras_model.hdf5')
     # main_gridTD_guidedgradcam(flickr_config, dataset, model_weight_path, max_caption_length=20)

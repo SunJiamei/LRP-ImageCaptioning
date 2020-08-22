@@ -1,18 +1,16 @@
 import heapq
 import os
 from collections import namedtuple
-import glob
 from time import sleep
 from tqdm import tqdm
 from keras.utils import GeneratorEnqueuer
-from preparedataset import Flickr30kDataset, COCODataset, DatasetPreprocessorAttention
+from models.preparedataset import Flickr30kDataset, DatasetPreprocessorAttention
 
-from io_utils import logging, write_yaml_file
-from metrics import BLEU, CIDEr, METEOR, ROUGE, SPICE, BERT
+from models.io_utils import logging, write_yaml_file
+from models.metrics import BLEU, CIDEr, METEOR, ROUGE, SPICE, BERT
 from itertools import zip_longest
-from model import *
+from models.model import *
 import config
-import pickle
 
 MAXIMUM_LENGTH = 20
 

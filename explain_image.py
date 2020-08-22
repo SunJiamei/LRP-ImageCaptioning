@@ -1,4 +1,4 @@
-from explainers import *
+from models.explainers import *
 
 
 class Explainer(object):

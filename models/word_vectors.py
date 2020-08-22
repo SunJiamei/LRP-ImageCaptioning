@@ -1,7 +1,6 @@
 import numpy as np
 from keras import backend as K, initializers
-import io_utils
-from preprocessors import CaptionPreprocessorAttention
+from models import io_utils
 
 
 class WordVector(object):
