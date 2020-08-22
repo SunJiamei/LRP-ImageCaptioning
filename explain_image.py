@@ -265,6 +265,17 @@ class ExplainerGuidedgradcam(Explainer):
 
 
 def explain_COCOmodel(model_weight_path, model_type, explain_img_file, explainer_type, explain_single_word=False, single_word_idx=None, max_caption_length=20):
+    '''
+    This function explain the models trained on MSCOCO dataset
+    :param model_weight_path: The hdf5 file of the model weight
+    :param model_type: adaptive or gridTD
+    :param explain_img_file: the path of a test image
+    :param explainer_type: explanation methods, lrp or guidedgradcam,  in you want to test other methods, add an option and specify the explainer_engine
+    :param explain_single_word: if true, this function only explains one word in the caption and will save the heatmap and print the explanation scores of the proceeding words.
+    :param single_word_idx: only valid if the 'explain_single_word' is True. Specify the index of the target word, index starts from 1
+    :param max_caption_length:
+    :return: The explanation heatmaps
+    '''
     dataset = COCODataset(single_caption=True)
     coco_config = config.COCOConfig()
     coco_config.batch_size = 1
@@ -308,6 +319,17 @@ def explain_COCOmodel(model_weight_path, model_type, explain_img_file, explainer
 
 
 def explain_flickr30Kmodel(model_weight_path, model_type, explain_img_file, explainer_type, explain_single_word=False, single_word_idx=None, max_caption_length=20):
+    '''
+    This function explain the models trained on Flickr30k dataset
+    :param model_weight_path: The hdf5 file of the model weight
+    :param model_type: adaptive or gridTD
+    :param explain_img_file: the path of a test image
+    :param explainer_type: explanation methods, lrp or guidedgradcam,  in you want to test other methods, add an option and specify the explainer_engine
+    :param explain_single_word: if true, this function only explains one word in the caption and will save the heatmap and print the explanation scores of the proceeding words.
+    :param single_word_idx: only valid if the 'explain_single_word' is True. Specify the index of the target word, index starts from 1
+    :param max_caption_length:
+    :return: The explanation heatmaps
+    '''
     flickr30_config = config.FlickrConfig()
     dataset = Flickr30kDataset(flickr30_config, single_caption=True)
     dataset_provider = DatasetPreprocessorAttention(dataset, flickr30_config, single_caption=True)
