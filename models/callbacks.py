@@ -5,7 +5,7 @@ from keras import backend as K
 from keras.callbacks import Callback
 
 from inference import BasicInference
-from io_utils import logging
+from models.io_utils import logging
 import psutil
 import os
 

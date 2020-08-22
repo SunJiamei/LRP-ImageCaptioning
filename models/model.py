@@ -3,12 +3,11 @@ from keras.applications.vgg19 import VGG19
 from keras.applications.inception_v3 import InceptionV3
 import keras
 from keras.regularizers import l1_l2
-from keras.layers import (Dense, Embedding, GRU, Input, LSTM, RepeatVector, ReLU,Softmax,
-                          TimeDistributed, Lambda, Reshape, InputSpec, Wrapper, RNN, Dropout, Add, Multiply,
-                          BatchNormalization)
+from keras.layers import (Dense, Embedding, Input, LSTM, TimeDistributed, Lambda, Reshape, InputSpec, Wrapper, RNN, Dropout,
+                          Multiply)
 from keras_applications.resnet_common import ResNet101
-from keras.optimizers import Adam, SGD, Adamax
-from word_vectors import get_word_vector_class
+from keras.optimizers import Adam
+from models.word_vectors import get_word_vector_class
 from keras.models import Model
 import tensorflow as tf
 from innvestigate.analyzer.relevance_based.relevance_analyzer import *

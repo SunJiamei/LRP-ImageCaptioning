@@ -8,7 +8,7 @@ from itertools import *
 from math import ceil
 from copy import copy
 from operator import attrgetter
-from preprocessors import  ImagePreprocessor, CaptionPreprocessorAttention
+from models.preprocessors import  ImagePreprocessor, CaptionPreprocessorAttention
 import xml.etree.ElementTree as ET
 
 '''Load the dataset as the format of Data_format including training set, val set and test set'''

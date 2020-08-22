@@ -10,8 +10,8 @@ def _path_from_here(path):
     result = os.path.join(os.path.dirname(__file__), path)
     return os.path.normpath(result)
 
-_DATASET_ROOT_DIR = _path_from_here('./dataset/')
-_RESULTS_ROOT_DIR = _path_from_here('./results/')
+_DATASET_ROOT_DIR = _path_from_here('../dataset/')
+_RESULTS_ROOT_DIR = _path_from_here('../results/')
 _VAR_ROOT_DIR = _path_from_here('./var/')
 
 

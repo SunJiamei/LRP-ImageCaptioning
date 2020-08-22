@@ -1,12 +1,12 @@
-from preparedataset import  COCODataset, Flickr30kDataset, DatasetPreprocessorAttention
-from model import *
+from models.preparedataset import Flickr30kDataset, DatasetPreprocessorAttention, COCODataset
+from models.model import *
 import config
 from keras import backend as K
 import os
 from scipy.special import expit as sigmoid
 from scipy.special import softmax
 import skimage.transform
-from inference import BatchNLargest, NLargest, Caption
+from inference import BatchNLargest, Caption
 from keras.models import Model
 from innvestigate.analyzer.relevance_based.relevance_analyzer import *
 from innvestigate.analyzer.gradient_based import *
