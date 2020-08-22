@@ -1,5 +1,5 @@
 # LRP ImageCaptioning 
-This is an implementation of [** Understanding Image Captioning Model beyond Visualizing Attention **](https://arxiv.org/abs/2001.01037)
+This is an implementation of [Understanding Image Captioning Model beyond Visualizing Attention](https://arxiv.org/abs/2001.01037)
 
 With this repo, we can
 1. Train two kinds of image captioning attention models.
@@ -16,7 +16,7 @@ We use two dataset: the [Flickr30K](http://shannon.cs.illinois.edu/DenotationGra
 We prepare the Flick30K as the Karpathy split. The captions and train/val/test splits are indluced in [./dataset](./dataset/Flickr30k_text).
 The vocabulary is build on the training set. We discard the words that appear less than 3 times.
 ##### MSCOCO2017
-We select 110000 images from the training set for train and 5000 images from the training set for validation. The original validation set is used for testing.
+We select 110000 images from the training set for training and 5000 images from the training set for validation. The original validation set is used for testing.
 The vocabulary is build on the training set. We discard the words that appear less than 5 times.
 ### To Train Models From Scratch
 We experiment with two kinds of image captioning models, 
@@ -33,8 +33,8 @@ Our pre-trained models are [here](https://drive.google.com/drive/folders/1_wXf6U
  
   
 ### To Evaluate the Image Captioning Model
-We evaluate the image captioning models using BLEU, SPICE, ROUGE, METEOR, CIDER metrics. We also use [BERT score](https://pypi.org/project/bert-score/). To generate these evaluations,
-you first need to download the [pycocoevalcap](https://github.com/salaniz/pycocoevalcap.git) tools and copy the folders of different metric under [./pycocoevalcap](pycocoevalcap). 
+We evaluate the image captioning models using BLEU, SPICE, ROUGE, METEOR, and CIDER metrics. We also use [BERT score](https://pypi.org/project/bert-score/). To generate these evaluations,
+we first need to download the [pycocoevalcap](https://github.com/salaniz/pycocoevalcap.git) tools and copy the folders of different metrics under [./pycocoevalcap](pycocoevalcap). 
 We already provide the `bert` folder. Then run the [inference.py](inference.py) after specifying the model path and the test dataset.
 
  
@@ -42,10 +42,11 @@ We already provide the `bert` folder. Then run the [inference.py](inference.py) 
 ### To Explain Image Captioning Models
 We provide LRP, GradCAM, Guided-GradCAM, and Gradient*Input to explain the image captioning models. These explanation methods are defined in [explainers.py](./models/explainers.py).
 
-There are two stages for explanation. We first explain the decoder to get the explanation of each proceeding words and the CNN encoded image features.
+There are two stages for explanation. We first explain the decoder to get the explanation of each proceeding word and the CNN encoded image features.
 We then refer to the repo [iNNvestigate](https://github.com/albermax/innvestigate.git) to explain the CNN image encoder.
 
-To predict a caption of a test image and explain the predictions, please refer the example code in [explain_image.py](explain_image.py).
+To predict a caption of a test image and explain the captions, please refer the example code in [explain_image.py](explain_image.py).
+An example of the LRP explanation result is shown as follow.
 ![](example_images/sport.png) 
 
 ![](example_images/sport_sentence.png)

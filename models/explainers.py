@@ -930,7 +930,9 @@ class ExplainImgCaptioningAdaptiveAttentionGuidedGradcam(ExplainImgCaptioningAda
     def _explain_CNN(self, X, relevance_value):
         gradcamp = self.grad_cam(self._img_feature_input, relevance_value[0])
         guided_backprop_relevance = self._CNN_explainer.analyze([X, relevance_value])
+        # if you use guided gradcam use the guided_backprop line
         relevance = guided_backprop_relevance[0] * gradcamp[..., np.newaxis]
+        # if explain gradcam, use the np.ones line
         # relevance = np.ones(guided_backprop_relevance.shape)[0] * gradcamp[..., np.newaxis]
         return relevance[np.newaxis,:]
 
@@ -1632,7 +1634,9 @@ class ExplainImgCaptioningGridTDGuidedGradcam(ExplainImgCaptioningGridTDGradient
     def _explain_CNN(self, X, relevance_value, ):
         gradcamp = self.grad_cam(self._image_features_input_bm, relevance_value[0])
         guided_backprop_relevance = self._CNN_explainer.analyze([X, relevance_value])
+        # if you use guided gradcam use the guided_backprop line
         relevance = guided_backprop_relevance[0] * gradcamp[..., np.newaxis]
+        # if explain gradcam, use the np.ones line
         # relevance = np.ones(guided_backprop_relevance.shape)[0] * gradcamp[..., np.newaxis]
         return relevance[np.newaxis,:]
 
