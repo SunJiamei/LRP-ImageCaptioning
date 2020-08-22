@@ -47,6 +47,7 @@ We then refer to the repo [iNNvestigate](https://github.com/albermax/innvestigat
 
 To predict a caption of a test image and explain the captions, please refer the example code in [explain_image.py](explain_image.py).
 An example of the LRP explanation result is shown as follow.
+
 ![](example_images/sport.png) 
 
 ![](example_images/sport_sentence.png)
