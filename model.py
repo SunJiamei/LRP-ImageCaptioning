@@ -828,7 +828,6 @@ class ImgCaptioningGridTDLRPInferenceModel(ImgCaptioningAttentionModel):
         super(ImgCaptioningGridTDLRPInferenceModel, self).__init__(config)
         self.config = config
         self._dataset_provider = dataset_provider
-
     def _build_image_embedding(self):
         if self.img_encoder == 'vgg16':
             base_model = VGG16(include_top=False, weights='imagenet')
@@ -846,7 +845,6 @@ class ImgCaptioningGridTDLRPInferenceModel(ImgCaptioningAttentionModel):
 
         image_embedding = Reshape((self.L, self.D))(self.image_model.output)
         return self.image_model.input, image_embedding
-
     def build(self, vocabs, vocab_size):
         self.image_input, self.image_features_input = self._build_image_embedding()
         self.image_features = TimeDistributed(Dense(self._hidden_dim, activation='relu'), name='image_features')(

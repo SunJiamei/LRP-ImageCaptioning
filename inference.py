@@ -313,10 +313,7 @@ def main(training_dir, dataset, test_dataset, config, test_config, model_name, m
          dataset_type='validation',
          beam_size=3,
          max_caption_length=20):
-    print(dataset.DATASET_NAME)
-    # if method != 'beam_search':
-    #     raise NotImplementedError('inference method = {} is not implemented '
-    #                               'yet!'.format(method))
+    # print(dataset.DATASET_NAME)
     if dataset_type not in ['validation', 'test']:
         raise ValueError('dataset_type={} is not recognized!'.format(
                                                                 dataset_type))
@@ -350,12 +347,6 @@ def main(training_dir, dataset, test_dataset, config, test_config, model_name, m
                                                     include_prediction=True)
     print(metrics)
     logging('Writting result to files..')
-    # metrics_path = os.path.join(training_dir,
-    #         '{}-metrics-{}-{}-{}-{}-colthes_unbalanced.yaml'.format(dataset_type, beam_size, model_name, test_dataset.DATASET_NAME,
-    #                                        max_caption_length))
-    # predictions_path = os.path.join(training_dir,
-    #         '{}-predictions-{}-{}-{}-{}-colthes_unbalanced.yaml'.format(dataset_type, beam_size, model_name, test_dataset.DATASET_NAME,
-    #                                            max_caption_length))
 
     metrics_path = os.path.join(training_dir,
             '{}-metrics-{}-{}-{}-{}.yaml'.format(dataset_type, beam_size, model_name, test_dataset.DATASET_NAME,

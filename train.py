@@ -163,7 +163,7 @@ class Training(object):
             pass
 
 
-class TrainingLocalAttentionV3(Training):
+class TrainingAdaptiveAttention(Training):
     def __init__(self,
                  config,
                  dataset,
@@ -178,18 +178,18 @@ class TrainingLocalAttentionV3(Training):
                  workers=1,
                  verbose=1,
                  ):
-        super(TrainingLocalAttentionV3, self).__init__(config,
-                                                       dataset,
-                                                       training_label=training_label,
-                                                       model_weights_path=model_weights_path,
-                                                       min_delta=min_delta,
-                                                       min_lr=min_lr,
-                                                       log_metrics_period=log_metrics_period,
-                                                       explode_ratio=explode_ratio,
-                                                       explode_patience=explode_patience,
-                                                       max_q_size=max_q_size,
-                                                       workers=workers,
-                                                       verbose=verbose)
+        super(TrainingAdaptiveAttention, self).__init__(config,
+                                                        dataset,
+                                                        training_label=training_label,
+                                                        model_weights_path=model_weights_path,
+                                                        min_delta=min_delta,
+                                                        min_lr=min_lr,
+                                                        log_metrics_period=log_metrics_period,
+                                                        explode_ratio=explode_ratio,
+                                                        explode_patience=explode_patience,
+                                                        max_q_size=max_q_size,
+                                                        workers=workers,
+                                                        verbose=verbose)
         self._model = ImgCaptioningAdaptiveAttentionModel(self._config)
         config.save_config_as_dict(self._result_dir)
 
@@ -284,7 +284,7 @@ class TrainingLocalAttentionV3(Training):
         io_utils.io_utils.logging('Training {} has finished.'.format(self._training_label))
 
 
-class TrainingAdaptiveBottomUp(Training):
+class TrainingGridTD(Training):
     def __init__(self,
                  config,
                  dataset,
@@ -299,18 +299,18 @@ class TrainingAdaptiveBottomUp(Training):
                  workers=1,
                  verbose=1,
                  ):
-        super(TrainingAdaptiveBottomUp, self).__init__(config,
-                                                 dataset,
-                                                training_label=training_label,
-                                                model_weights_path=model_weights_path,
-                                                min_delta=min_delta,
-                                                min_lr=min_lr,
-                                                log_metrics_period=log_metrics_period,
-                                                explode_ratio=explode_ratio,
-                                                explode_patience=explode_patience,
-                                                max_q_size=max_q_size,
-                                                workers=workers,
-                                                verbose=verbose)
+        super(TrainingGridTD, self).__init__(config,
+                                             dataset,
+                                             training_label=training_label,
+                                             model_weights_path=model_weights_path,
+                                             min_delta=min_delta,
+                                             min_lr=min_lr,
+                                             log_metrics_period=log_metrics_period,
+                                             explode_ratio=explode_ratio,
+                                             explode_patience=explode_patience,
+                                             max_q_size=max_q_size,
+                                             workers=workers,
+                                             verbose=verbose)
         self._model = ImgCaptioninggridTDAdaptiveModel(self._config)
         config.save_config_as_dict(self._result_dir)
 
@@ -400,7 +400,7 @@ class TrainingAdaptiveBottomUp(Training):
         io_utils.io_utils.logging('Training {} has finished.'.format(self._training_label))
 
 
-class TrainingLRPInferenceAdaptive3RealTime(Training):
+class TrainingLRPInferenceAdaptiveAttention(Training):
     def __init__(self,
                  config,
                  dataset,
@@ -415,18 +415,18 @@ class TrainingLRPInferenceAdaptive3RealTime(Training):
                  workers=1,
                  verbose=1,
                  ):
-        super(TrainingLRPInferenceAdaptive3RealTime, self).__init__(config,
-                                                 dataset,
-                                                training_label=training_label,
-                                                model_weights_path=model_weights_path,
-                                                min_delta=min_delta,
-                                                min_lr=min_lr,
-                                                log_metrics_period=log_metrics_period,
-                                                explode_ratio=explode_ratio,
-                                                explode_patience=explode_patience,
-                                                max_q_size=max_q_size,
-                                                workers=workers,
-                                                verbose=verbose)
+        super(TrainingLRPInferenceAdaptiveAttention, self).__init__(config,
+                                                                    dataset,
+                                                                    training_label=training_label,
+                                                                    model_weights_path=model_weights_path,
+                                                                    min_delta=min_delta,
+                                                                    min_lr=min_lr,
+                                                                    log_metrics_period=log_metrics_period,
+                                                                    explode_ratio=explode_ratio,
+                                                                    explode_patience=explode_patience,
+                                                                    max_q_size=max_q_size,
+                                                                    workers=workers,
+                                                                    verbose=verbose)
         self.T = config.sentence_length
         self.L = config.img_feature_length
         self.D = config.img_feature_dim
@@ -477,7 +477,7 @@ class TrainingLRPInferenceAdaptive3RealTime(Training):
         io_utils.io_utils.logging('Training {} has finished.'.format(self._training_label))
 
 
-class TrainingLRPInferenceAdaptiveBottomupRealTime(Training):
+class TrainingLRPInferenceGridTD(Training):
     def __init__(self,
                  config,
                  dataset,
@@ -492,18 +492,18 @@ class TrainingLRPInferenceAdaptiveBottomupRealTime(Training):
                  workers=1,
                  verbose=1,
                  ):
-        super(TrainingLRPInferenceAdaptiveBottomupRealTime, self).__init__(config,
-                                                 dataset,
-                                                training_label=training_label,
-                                                model_weights_path=model_weights_path,
-                                                min_delta=min_delta-4,
-                                                min_lr=min_lr,
-                                                log_metrics_period=log_metrics_period,
-                                                explode_ratio=explode_ratio,
-                                                explode_patience=explode_patience,
-                                                max_q_size=max_q_size,
-                                                workers=workers,
-                                                verbose=verbose)
+        super(TrainingLRPInferenceGridTD, self).__init__(config,
+                                                         dataset,
+                                                         training_label=training_label,
+                                                         model_weights_path=model_weights_path,
+                                                         min_delta=min_delta-4,
+                                                         min_lr=min_lr,
+                                                         log_metrics_period=log_metrics_period,
+                                                         explode_ratio=explode_ratio,
+                                                         explode_patience=explode_patience,
+                                                         max_q_size=max_q_size,
+                                                         workers=workers,
+                                                         verbose=verbose)
 
         self._model = ImgCaptioningGridTDLRPInferenceModel(self._config, self._dataset_provider)
         self.T = config.sentence_length
@@ -557,7 +557,7 @@ class TrainingLRPInferenceAdaptiveBottomupRealTime(Training):
         io_utils.logging('Training {} has finished.'.format(self._training_label))
 
 
-MODELTYPE = {'adaptiveattention':TrainingLocalAttentionV3, 'gridTD':TrainingAdaptiveBottomUp}
+MODELTYPE = {'adaptiveattention':TrainingAdaptiveAttention, 'gridTD':TrainingGridTD}
 
 
 def main_attention(config, dataset, training_label, model_type,log_metrics_period=1):
@@ -567,7 +567,7 @@ def main_attention(config, dataset, training_label, model_type,log_metrics_perio
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # 0 :3 2:1 1:0 3:2
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     # to train from scratch
     flickr_config = config.FlickrConfig()
@@ -587,16 +587,16 @@ if __name__ == '__main__':
     for i in range(50):
         if i == 0:
             model_weight = glob.glob('./results/flickr30k/training-results/flickr_VGG16_adaptive_attention/keras_model.hdf5')[0]
-            training = TrainingLRPInferenceAdaptiveBottomupRealTime(config=flickr_config, dataset=dataset,
-                                                             training_label='flickr_VGG16_adaptive_attention_lrp_inference_real_time_0.5_0.5_test',
-                                                             model_weights_path=model_weight)
+            training = TrainingLRPInferenceGridTD(config=flickr_config, dataset=dataset,
+                                                  training_label='flickr_VGG16_adaptive_attention_lrp_inference_real_time_0.5_0.5_test',
+                                                  model_weights_path=model_weight)
             training.run(i+1, 10)
         else:
             model_weight = glob.glob(
                 './results/flickr30k/training-results/flickr_VGG16_adaptive_attention_lrp_inference_real_time_0.5_0.5_test/keras_model_{:02d}*'.format(i))[0]
-            training = TrainingLRPInferenceAdaptiveBottomupRealTime(config=flickr_config, dataset=dataset,
-                                                             training_label='flickr_VGG16_adaptive_attention_lrp_inference_real_time_0.5_0.5_test',
-                                                             model_weights_path=model_weight)
+            training = TrainingLRPInferenceGridTD(config=flickr_config, dataset=dataset,
+                                                  training_label='flickr_VGG16_adaptive_attention_lrp_inference_real_time_0.5_0.5_test',
+                                                  model_weights_path=model_weight)
             training.run(i+1, 10)
         K.clear_session()
 

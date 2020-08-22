@@ -257,7 +257,6 @@ class ExplainImgCaptioningAttentionModel(object):
 
 
 
-
 class ExplainImgCaptioningAdaptiveAttention(ExplainImgCaptioningAttentionModel):
 
     def __init__(self,  model, weight_path, dataset_provider, max_caption_length=20):
