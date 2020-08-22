@@ -7,8 +7,7 @@ With this repo, we can
 3. Finetune pre-trained image captioning models with LRP inference to reduce object hallucination. 
 
 ### Requirement
-python3.5
-
+python3.5 
 keras>=2.2.4
 
 ### Dataset Preparation
@@ -18,7 +17,7 @@ We prepare the Flick30K as the Karpathy split. The captions and train/val/test s
 The vocabulary is build on the training set. We discard the words that appear less than 3 times.
 ##### MSCOCO2017
 We select 110000 images from the training set for train and 5000 images from the training set for validation. The original validation set is used for testing.
-
+The vocabulary is build on the training set. We discard the words that appear less than 5 times.
 ### To Train Models From Scratch
 We experiment with two kinds of image captioning models, 
 adaptive attention model and the grid-TD model based on two papers
@@ -41,8 +40,31 @@ We already provide the `bert` folder. Then run the [inference.py](inference.py) 
  
 
 ### To Explain Image Captioning Models
+We provide LRP, GradCAM, Guided-GradCAM, and Gradient*Input to explain the image captioning models. These explanation methods are defined in [explainers.py](./models/explainers.py).
+
 There are two stages of explanation. We first explain the decoder to get the explanation of each proceeding words and the CNN encoded image features.
 We then refer to the repo [iNNvestigate](https://github.com/albermax/innvestigate.git) to explain the CNN image encoder.
+
+To predict a caption of a test image and explain the predictions, please refer the example code in [explain_image.py](explain_image.py).
+![](example_images/sport.png)
+
+![](example_images/sport_sentence.png)
+
+
+
+### To fine tune the model with LRP inference
+The LRP-inference model is defined in [./models/model.py](./models/model.py). 
+
+
+Acknowledgement
+---------------
+Many thanks to the works:
+
+[keras image captioning](https://github.com/danieljl/keras-image-captioning.git)
+
+[iNNvestigate](https://github.com/albermax/innvestigate.git)
+
+[pycocoevalcap](https://github.com/salaniz/pycocoevalcap.git)
 
 
 
