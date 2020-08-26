@@ -11,7 +11,7 @@ python3.5
 keras>=2.2.4
 
 ### Dataset Preparation
-We use two dataset: the [Flickr30K](http://shannon.cs.illinois.edu/DenotationGraph/) and the [MSCOCO2017](https://cocodataset.org/#download).
+We use two datasets: the [Flickr30K](http://shannon.cs.illinois.edu/DenotationGraph/) and the [MSCOCO2017](https://cocodataset.org/#download).
 ##### Flickr30K
 We prepare the Flick30K as the Karpathy split. The captions and train/val/test splits are indluced in [./dataset](./dataset/Flickr30k_text).
 The vocabulary is build on the training set. We discard the words that appear less than 3 times.
