@@ -347,8 +347,8 @@ class COCODataset(Dataset):
     def _process_dataset(self, ann_file):
         for ann in ann_file['annotations']:
             q = ann['caption'].lower()
-            if q[-1]!='.':
-                q = q + '.'
+            if q[-1] == '.':
+                q = q[:-1]
             ann['caption'] = q
         return ann_file
 
@@ -469,10 +469,9 @@ class Flickr30kDataset(Dataset):
 
     def _process_dataset(self, caption_txt):
         q = caption_txt.lower()
-        if q[-1]!='.':
-            q = q + '.'
-        caption_txt = q
-        return caption_txt
+        if q[-1] == '.':
+            q = q[:-1]
+        return q
 
 
 '''encode the images and embed the captions, generate the pair of training input X and output Y '''
@@ -574,7 +573,6 @@ class DatasetPreprocessorAttention(object):
 
         imgs_input = self.image_preprocessor.preprocess_batch(img_batch)
         captions = self.caption_preprocessor.preprocess_batch(caption_batch)
-
         captions_input, captions_output = captions
         X, y = [captions_input, imgs_input], captions_output
         if include_datum:

@@ -28,7 +28,7 @@ class BasicInference(object):
         self._model = keras_model
         self._dataset_provider = test_dataset_provider
         self._preprocessor = dataset_provider.caption_preprocessor
-        self._metrics = [BLEU(4), METEOR(),  CIDEr(), ROUGE(),SPICE(), BERT()] #, ROUGE(),SPICE(), BERT()
+        self._metrics = [BLEU(4), METEOR(),  CIDEr(), ROUGE(),SPICE()] #, ROUGE(),SPICE(), BERT()
         self._max_caption_length = 20
         self._beam_size = 1
 
@@ -90,32 +90,38 @@ class BasicInference(object):
             return zip(caption_results, datum_results)
         else:
             return caption_results
-
     def _predict_batch(self, X, y):
-        _, imgs_input = X
-        batch_size = imgs_input.shape[0]
-        EOS_ENCODED = self._dataset_provider.caption_preprocessor.EOS_TOKEN_LABEL_ENCODED
-        SOS_ENCODED = self._dataset_provider.caption_preprocessor.SOS_TOKEN_LABEL_ENCODED
-        cap = [[SOS_ENCODED] for _ in range(batch_size)]
-        for _ in range(self._max_caption_length):
-            captions_input, _ = self._dataset_provider.caption_preprocessor.preprocess_batch(cap)
-            preds = self._model.predict_on_batch([captions_input, imgs_input])
-            preds = self._log_softmax(preds)
-            preds = preds[:, -1]  # We only care the last word in a caption
-            top_words = np.argmax(preds, axis=-1)
-            top_words = top_words
-            for i in range(batch_size):
-                if EOS_ENCODED in cap[i]:
-                    continue
-                cap[i] = cap[i]+ [top_words[i]]
-        results = []
-        for i in range(batch_size):
-            cap_str = []
-            for j in range(1,len(cap[i])-1):
-                word = self._dataset_provider.caption_preprocessor._word_of[cap[i][j]]
-                cap_str.append(word)
-            results.append(' '.join(cap_str))
-        return results
+        captions_pred = self._model.predict_on_batch(X)
+        captions_pred_str = self._preprocessor.decode_captions(
+                                                captions_output=captions_pred,
+                                                captions_output_expected=y)
+        return captions_pred_str
+    # def _predict_batch(self, X, y):
+    #     _, imgs_input = X
+    #     batch_size = imgs_input.shape[0]
+    #     EOS_ENCODED = self._dataset_provider.caption_preprocessor.EOS_TOKEN_LABEL_ENCODED
+    #     SOS_ENCODED = self._dataset_provider.caption_preprocessor.SOS_TOKEN_LABEL_ENCODED
+    #     cap = [[SOS_ENCODED] for _ in range(batch_size)]
+    #     for _ in range(self._max_caption_length):
+    #         captions_input, _ = self._dataset_provider.caption_preprocessor.preprocess_batch(cap)
+    #         preds = self._model.predict_on_batch([captions_input, imgs_input])
+    #         preds = self._log_softmax(preds)
+    #         preds = preds[:, -1]
+    #         top_words = np.argmax(preds, axis=-1)
+    #         top_words = top_words
+    #         for i in range(batch_size):
+    #             if EOS_ENCODED in cap[i]:
+    #                 continue
+    #             cap[i] = cap[i]+ [top_words[i]+1]
+    #     results = []
+    #     for i in range(batch_size):
+    #         cap_str = []
+    #         for j in range(1,len(cap[i])-1):
+    #             word = self._dataset_provider.caption_preprocessor._word_of[cap[i][j]]
+    #             cap_str.append(word)
+    #         results.append(' '.join(cap_str))
+    #     print(results)
+    #     return results
 
     def _log_softmax(self, x):
         x = x - np.max(x, axis=-1, keepdims=True)  # For numerical stability

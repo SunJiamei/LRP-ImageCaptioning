@@ -22,7 +22,7 @@ class FlickrConfig(object):
         self.bidirectional_rnn = False
         # about the hyperparameters
         self.num_epochs = 100
-        self.batch_size = 10
+        self.batch_size = 32
         self.val_batch_size = 1
         # self.optimizer = 'Adam'    # 'Adam', 'RMSProp', 'Momentum' or 'SGD'
         self.image_augmentation = False
@@ -31,7 +31,7 @@ class FlickrConfig(object):
         self.trainable_variable = False
         self.rare_words_handling = 'discard'
         self.words_min_occur = 3
-        self.max_caption_length = 22
+        self.max_caption_length = 20
         #for image encoder
         self.img_encoder = 'vgg16'  # 'vgg16'  'vgg19' 'inception_v3' 'resnet50
         self.layer_name = "block5_conv3"  # VGG16 'block5_conv3', VGG19 'block_conv4', Inception_v3, mixed10 resnet50 activation_49
