@@ -432,11 +432,11 @@ class Flickr30kDataset(Dataset):
     def _build(self):
         print(self.DATASET_NAME)
         self._captions_of = self._build_captions()
-        self._training_set = self._build_set(self.img_train_filename)
+        self._training_set = self._build_set(self.img_train_filename, 'train')
         print('Flickr Traing set is built', len(self._training_set))
-        self._validation_set = self._build_set(self.img_val_filename)
+        self._validation_set = self._build_set(self.img_val_filename, 'val')
         print('Flickr Val set is built', len(self._validation_set))
-        self._test_set = self._build_set(self.img_test_filename)
+        self._test_set = self._build_set(self.img_test_filename, 'test')
         print('Flickr Test set is built', len(self._test_set))
 
     def _build_captions(self):
@@ -450,7 +450,7 @@ class Flickr30kDataset(Dataset):
             caption_txt = self._process_dataset(caption_txt)
             captions_of[img_filename].append(caption_txt)
         return dict(captions_of)
-    def _build_set(self, img_set_filename):
+    def _build_set(self, img_set_filename, split):
         img_filenames = io_utils.read_text_file(img_set_filename)
         dataset = []
         for img_filename in img_filenames:
@@ -463,7 +463,7 @@ class Flickr30kDataset(Dataset):
                                            img_path=img_path,
                                            caption_txt=caption_txt,
                                            all_captions_txt=all_captions_txt))
-                if self._single_caption:
+                if self._single_caption or split in ['val', 'test']:
                     break
         return dataset
 

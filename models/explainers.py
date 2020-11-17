@@ -459,7 +459,7 @@ class ExplainImgCaptioningAdaptiveAttention(ExplainImgCaptioningAttentionModel):
         weight_hg = np.split(self._lstm_weight_h, 4, 1)[2]  # (512, 512)
         weight_g = np.vstack((weight_ig, weight_hg))  # (600, 300)
         bias_g = np.split(self._lstm_bias, 4)[2]
-        self.relevance_rule = self._propagate_relevance_linear_lrp_alpha_beta
+        self.relevance_rule = self._propagate_relevance_linear_lrp
         r_ht_context = self.relevance_rule(r_in=explain_relevance,
                                            forward_input=explain_ht + explain_c_hat,
                                            forward_output=self.caption_preds[t - 1],

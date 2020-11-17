@@ -90,38 +90,40 @@ class BasicInference(object):
             return zip(caption_results, datum_results)
         else:
             return caption_results
-    def _predict_batch(self, X, y):
-        captions_pred = self._model.predict_on_batch(X)
-        captions_pred_str = self._preprocessor.decode_captions(
-                                                captions_output=captions_pred,
-                                                captions_output_expected=y)
-        return captions_pred_str
     # def _predict_batch(self, X, y):
-    #     _, imgs_input = X
-    #     batch_size = imgs_input.shape[0]
-    #     EOS_ENCODED = self._dataset_provider.caption_preprocessor.EOS_TOKEN_LABEL_ENCODED
-    #     SOS_ENCODED = self._dataset_provider.caption_preprocessor.SOS_TOKEN_LABEL_ENCODED
-    #     cap = [[SOS_ENCODED] for _ in range(batch_size)]
-    #     for _ in range(self._max_caption_length):
-    #         captions_input, _ = self._dataset_provider.caption_preprocessor.preprocess_batch(cap)
-    #         preds = self._model.predict_on_batch([captions_input, imgs_input])
-    #         preds = self._log_softmax(preds)
-    #         preds = preds[:, -1]
-    #         top_words = np.argmax(preds, axis=-1)
-    #         top_words = top_words
-    #         for i in range(batch_size):
-    #             if EOS_ENCODED in cap[i]:
-    #                 continue
-    #             cap[i] = cap[i]+ [top_words[i]+1]
-    #     results = []
-    #     for i in range(batch_size):
-    #         cap_str = []
-    #         for j in range(1,len(cap[i])-1):
-    #             word = self._dataset_provider.caption_preprocessor._word_of[cap[i][j]]
-    #             cap_str.append(word)
-    #         results.append(' '.join(cap_str))
-    #     print(results)
-    #     return results
+    #     captions_pred = self._model.predict_on_batch(X)
+    #     captions_pred_str = self._preprocessor.decode_captions(
+    #                                             captions_output=captions_pred,
+    #                                             captions_output_expected=y)
+    #     return captions_pred_str
+
+    #eedy search
+    def _predict_batch(self, X, y):
+        _, imgs_input = X
+        batch_size = imgs_input.shape[0]
+        EOS_ENCODED = self._dataset_provider.caption_preprocessor.EOS_TOKEN_LABEL_ENCODED
+        SOS_ENCODED = self._dataset_provider.caption_preprocessor.SOS_TOKEN_LABEL_ENCODED
+        cap = [[SOS_ENCODED] for _ in range(batch_size)]
+        for _ in range(self._max_caption_length):
+            captions_input, _ = self._dataset_provider.caption_preprocessor.preprocess_batch(cap)
+            preds = self._model.predict_on_batch([captions_input, imgs_input])
+            preds = self._log_softmax(preds)
+            preds = preds[:, -1]
+            top_words = np.argmax(preds, axis=-1)
+            top_words = top_words
+            for i in range(batch_size):
+                if EOS_ENCODED in cap[i]:
+                    continue
+                cap[i] = cap[i]+ [top_words[i]+1]
+        results = []
+        for i in range(batch_size):
+            cap_str = []
+            for j in range(1,len(cap[i])-1):
+                word = self._dataset_provider.caption_preprocessor._word_of[cap[i][j]]
+                cap_str.append(word)
+            results.append(' '.join(cap_str))
+        print(results)
+        return results
 
     def _log_softmax(self, x):
         x = x - np.max(x, axis=-1, keepdims=True)  # For numerical stability
@@ -328,6 +330,8 @@ def main(training_dir, dataset, test_dataset, config, test_config, model_name, m
         model = ImgCaptioninggridTDAdaptiveModel(config)
     elif 'adaptive' == model_type:
         model = ImgCaptioningAdaptiveAttentionModel(config)
+    elif 'AOA' == model_type:
+        model = AOAattentionmodel(config)
     else:
         raise NotImplementedError('Please specify model_type as gridTD or adaptive')
     model.build(dataset_provider.vocabs, dataset_provider.vocab_size)
@@ -377,14 +381,15 @@ if __name__ == '__main__':
     flickr_config = config.FlickrConfig()
     flickr_config.batch_size=20
     dataset = Flickr30kDataset(flickr_config, single_caption=True)
-    training_dir = './results/flickr30k/training-results/flickr_VGG16_adaptive_attention/'
+    # training_dir = './results/flickr30k/training-results/flickr_VGG16_adaptive_attention/'
     # training_dir = './results/flickr30k/training-results/flickr_VGG16_gridTD_attention/'
     # training_dir = './results/flickr30k/training-results/flickr_VGG16_adaptive_lrp_inference_0.5_0.5'
     # training_dir = './results/flickr30k/training-results/flickr_VGG16_adaptive_lrp_inference_baseline'
     # training_dir = './results/flickr30k/training-results/flickr_VGG16_gridTD_lrp_inference_0.5_0.5'
     # training_dir = './results/flickr30k/training-results/flickr_VGG16_gridTD_lrp_inference_baseline'
-    main(training_dir, dataset, dataset, flickr_config, flickr_config, model_type='adaptive', beam_size=3,
-         dataset_type='test', model_name='keras_model.hdf5')
+    training_dir = './results/flickr30k/training-results/flickr_VGG16_AOA/'
+    main(training_dir, dataset, dataset, flickr_config, flickr_config, model_type='AOA', beam_size=3,
+         dataset_type='test', model_name='keras_model_19_0.3174.hdf5')
 
 
 

@@ -7,7 +7,7 @@ class FlickrConfig(object):
     """ Wrapper class for various (hyper)parameters. """
     def __init__(self):
         # about the model architecture
-        self.learning_rate = 0.0005
+        self.learning_rate = 0.0002
         self.reduce_lr_factor = 0.2
         self.reduce_lr_patience = 3
         self.early_stopping_patience = 10

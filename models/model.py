@@ -95,8 +95,10 @@ class ImgCaptioningAttentionModel(object):
     def categorical_crossentropy_from_logits(self, y_true, y_pred):
         y_true = y_true[:, :-1, :]  # Discard the last timestep/word (dummy)
         y_pred = y_pred[:, :-1, :]  # Discard the last timestep/word (dummy)
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_true,
-                                                          logits=y_pred))
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_true,
+                                                          logits=y_pred)
+        # loss = tf.nn.softmax_cross_entropy_with_logits(labels=y_true,
+        #                                                logits=y_pred)
 
         return loss
 
@@ -823,459 +825,429 @@ class ExternalBottomUpAttentionAdaptive(ExternalAttentionRNNWrapper):
 
 
 # the aoa attention model
-class MultiHeadAttention(keras.layers.Layer):
-
-    def __init__(self, num_head, input_dim, norm_q=0, drop_out_rate=0.3, **kwargs):
-        super(MultiHeadAttention, self).__init__(**kwargs)
-        self._drop_out_rate = drop_out_rate
-        self._num_head = num_head
-        self._input_dim = input_dim
-        assert input_dim % num_head == 0
-        self._d_k = input_dim // num_head
-        # self._norm = LayerNorm(input_dim)
-        self._norm = lambda x:x
-        self.weight_initializer = 'glorot_uniform'
-
-    def build(self, input_shape):
-        super(MultiHeadAttention, self).build(input_shape)
-        self._q_proj_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim), name="{}_q_proj_w".format(self.name),
-                                    initializer=self.weight_initializer)
-        self._k_proj_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim), name="{}_k_proj_w".format(self.name),
-                                    initializer=self.weight_initializer)
-        self._v_proj_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim), name="{}_v_proj_w".format(self.name),
-                                    initializer=self.weight_initializer)
-
-        self._q_proj_layer_bias = self.add_weight(shape=(self._input_dim,), name="{}_q_proj_b".format(self.name),
-                                    initializer='zeros')
-
-        self._k_proj_layer_bias = self.add_weight(shape=(self._input_dim,), name="{}_k_proj_b".format(self.name),
-                                                 initializer='zeros')
-
-        self._v_proj_layer_bias = self.add_weight(shape=(self._input_dim,), name="{}_v_proj_b".format(self.name),
-                                                 initializer='zeros')
-
-        self.aoa_glu_projq_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
-                                                     name="{}_aoa_glu_projq_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_gateq_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
-                                                     name="{}_aoa_glu_gateq_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_projh_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
-                                                     name="{}_aoa_glu_projh_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_gateh_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
-                                                     name="{}_aoa_glu_gateh_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_gate_layer_bias = self.add_weight(shape=(self._input_dim,),
-                                                   name="{}_aoa_glu_gate_b".format(self.name),
-                                                   initializer='zeros')
-        self.aoa_glu_proj_layer_bias = self.add_weight(shape=(self._input_dim,),
-                                                     name="{}_aoa_glu_proj_b".format(self.name),
-                                                     initializer='zeros')
-        self.built = True
-
-    def call(self, inputs, **kwargs):
-        # the dim of query , key, and value should be the same
-        # and we seperate the q, k v into several heads.
-        # for example if the query shape is (None, 196, 512) and the head number is 8
-        # the query is reshaped into (None, 196, 8, 64), where 64 is denoted as self._d_k which is the
-        # feature dimension of the multiheadattention process.
-        # this is the reasion we require that  input_dim // num_head == 0
-        query = inputs[0]  # shape (batch_size, num_feature, query_dim)
-        key = inputs[1]  # shape (batch_size, num_feature, key_dim)
-        value = inputs[2]  # shape (batch_size, num_feature, value_dim)
-
-        # normalized the query
-        query = self._norm(query)
-        # we first project the q, k, v, the output shape is the same as the original ones
-        # p_query = self._q_proj_layer(query)  # shape (batch_size, num_feature, query_dim)
-        # p_key = self._k_proj_layer(key)  # shape (batch_size, num_feature, key_dim)
-        # p_value = self._v_proj_layer(value)  # shape (batch_size, num_feature, value_dim)
-        p_query = K.dot(query, self._q_proj_layer_weight) + self._q_proj_layer_bias
-        p_key = K.dot(key, self._k_proj_layer_weight) + self._k_proj_layer_bias
-        p_value = K.dot(value, self._v_proj_layer_weight) + self._v_proj_layer_bias
-        # print(p_query.shape)
-        # the we reshap the projected q,k v into multihead fatures
-        # the shape is (batch size, num_features, num_head, d_k )
-        p_query = K.reshape(p_query, (-1, p_query.shape[1], self._num_head, self._d_k))
-        p_key = K.reshape(p_key, (-1, p_key.shape[1], self._num_head, self._d_k))
-        p_value = K.reshape(p_value, (-1, p_value.shape[1], self._num_head, self._d_k))
-
-        # we permute the dimension of q, k, v
-        # the shape is (batch size, number_head, num_feature, d_k)
-        p_query = K.permute_dimensions(p_query, (0, 2, 1, 3))
-        p_key = K.permute_dimensions(p_key, (0, 2, 3, 1))
-        p_value = K.permute_dimensions(p_value, (0, 2, 1, 3))
-        # then we implement the transformer style attention, QK^T/sqrt(d_k) refer K.batch_dot
-        normalizer = np.sqrt(self._d_k)  # with normalizer performs better in the original paper
-        # we use K.batch_dot and the last axes is used for dot product
-        # note that the result of -1 and the results of [3,3] are different, we should use the positive int number
-        axes_dot = len(p_query.shape) - 1  # (3)
-
-        # this step is Q K^T
-        similarity = K.batch_dot(p_query, p_key, axes=[axes_dot,
-                                                       axes_dot-1])  # shape (batch_size, number_head, number_feature, number_feature)
-        # this step applies the normalizer of sqrt(d_k)
-        similarity = similarity / normalizer
-        # calculate the attention for each feature, softmax along the last axis
-        p_attention = K.softmax(similarity, axis=-1) # shape (batch_size, number_head, number_feature, number_feature)
-        # the attention is multiplied on the value to generate the weighted value
-        # shape (batch size, num_head, num_features, d_k)
-        hat_value = K.batch_dot(p_attention, p_value, axes=[axes_dot, axes_dot - 1]) # shape (batch_size, number_head, number_feature, d_k)
-
-        # we need to concate the weighted feature of each head
-        # shape (batch size, num_features, num_head, d_k)
-        hat_value = K.permute_dimensions(hat_value, (0, 2, 1, 3))
-        # then we reshape hat_value to concatenate the feature of each head
-        # shape (batch size, num_features, value_dim)
-        hat_value = K.reshape(hat_value, (-1, hat_value.shape[1], self._num_head * self._d_k))
-
-        hat_value = Dropout(rate=self._drop_out_rate)(hat_value)
-        query = Dropout(rate=self._drop_out_rate)(query)
-        # aoa_proj_q_v = self.aoa_proj_layer(q_v_concate)
-        # aoa_gate = K.sigmoid(self.aoa_gate_layer(q_v_concate))
-        aoa_proj_q_v = K.dot(query, self.aoa_glu_projq_layer_weight) + K.dot(hat_value, self.aoa_glu_projh_layer_weight) + self.aoa_glu_proj_layer_bias
-        aoa_gate = K.sigmoid(K.dot(query, self.aoa_glu_gateq_layer_weight) + K.dot(hat_value, self.aoa_glu_gateh_layer_weight) + self.aoa_glu_gate_layer_bias)
-        hat_value = aoa_gate * aoa_proj_q_v
-        hat_value = K.normalize_batch_in_training(hat_value, None, None, reduction_axes=[0,2])[0]
-        hat_value = K.dropout(hat_value, 0.3)
-        return hat_value + query
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[0]
-class AOAattentionmodel(ImgCaptioningAttentionModel):
-
-    def __init__(self, config, multi_head_num=8, encoder_refine_num=6):
-        super(AOAattentionmodel, self).__init__(config)
-        self.multi_head_num = multi_head_num
-        self.encoder_refine_num = encoder_refine_num
-
-    def _build_image_embedding(self):
-        if self.img_encoder == 'vgg16':
-            base_model = VGG16(include_top=False, weights='imagenet')
-        elif self.img_encoder == 'vgg19':
-            base_model = VGG19(include_top=False, weights='imagenet')
-        elif self.img_encoder == 'inception_v3':
-            base_model = InceptionV3(include_top=False, weights='imagenet')
-        elif self.img_encoder == 'resnet50':
-            base_model = ResNet50(include_top=False, weights='imagenet')
-        elif self.img_encoder == 'resnet101':
-            base_model = ResNet101(include_top=False, weights='imagenet', backend=keras.backend, layers=keras.layers,
-                                   models=keras.models, utils=keras.utils)
-        else:
-            raise ValueError("not implemented encoder type")
-        self.image_model = Model(inputs=base_model.input, outputs=base_model.get_layer(self.layer_name).output)
-        for layer in self.image_model.layers:
-            layer.trainable = False
-        image_embedding = Reshape((self.L, self.D))(self.image_model.output)
-        return self.image_model.input, image_embedding
-
-    def build(self, vocabs, vocab_size):
-        # print('here_attention_model_2')
-        self.image_input, self.image_features_input = self._build_image_embedding()
-        self.aoa_refine_layers = []
-
-        self.image_features_input = BatchNormalization()(self.image_features_input)
-        self.image_features = Dense(self._hidden_dim, activation='relu', name="image_features")(
-            self.image_features_input)
-        self.image_features = Dropout(rate=self._dropout_rate)(self.image_features)
-        self.image_features = BatchNormalization()(self.image_features)
-        self.global_image_feature = Lambda(lambda x: K.mean(x, axis=1))(self.image_features)
-        self.captions_input, self.captions = self._build_word_embedding(vocabs, vocab_size)
-        if self.encoder_refine_num > 0:
-            for i in range(self.encoder_refine_num):
-                self.aoa_refine_layers.append(MultiHeadAttention(self.multi_head_num, self._hidden_dim, name='multi_head_encoder_{}'.format(i)))
-            for i in range(self.encoder_refine_num):
-                self.image_features = self.aoa_refine_layers[i](
-                    [self.image_features, self.image_features, self.image_features])
-                self.image_features = BatchNormalization()(self.image_features)
-                self.image_features = Dropout(rate=self._dropout_rate)(self.image_features)
-
-        self.image_features = BatchNormalization()(self.image_features)
-
-        self.encoder = LSTM(self._hidden_dim, return_sequences=True, return_state=True,
-                            recurrent_dropout=self._dropout_rate, activation='tanh', recurrent_activation='sigmoid',
-                            dropout=self._dropout_rate)
-        self.attented_encoder = ExternalAOAAttentionRNNWrapper(self.encoder, return_attention=False)
-        self.output = TimeDistributed(Dense(self._vocab_size), name="output")
-
-        self.attented_encoder_training_data, s1, s2= self.attented_encoder(
-            [self.captions, self.image_features], constants=[self.global_image_feature])
-        self.attented_encoder_training_data = Dropout(rate=self._dropout_rate)(self.attented_encoder_training_data)
-
-        self.training_output_data = self.output(self.attented_encoder_training_data)
-        self.training_output_data = Dropout(rate=self._dropout_rate)(self.training_output_data)
-
-        self.training_model = Model(inputs=[self.captions_input, self.image_input], outputs=self.training_output_data)
-        # for layer in self.training_model.layers:
-        #     layer.trainable = True
-
-        # for layer in self.training_model.layers:
-        #     print(layer.name, layer.trainable)
-        # self.training_model.compile(optimizer=Adam(lr=self._learning_rate, clipvalue=0.1),
-        #               loss=self.categorical_crossentropy_from_logits,
-        #               metrics=[self.categorical_accuracy_with_variable_timestep])
-        self.training_model.compile(optimizer=Adam(lr=self._learning_rate, clipvalue=0.1),
-                                    loss=[self.categorical_crossentropy_from_logits],
-                                    metrics=[self.categorical_accuracy_with_variable_timestep])
-        self.training_model.summary()
-
-    # def categorical_crossentropy_from_logits(self, y_true, y_pred):
-    #     # Discarding is still needed although CaptionPreprocessor.preprocess_batch
-    #     # has added dummy words as all-zeros arrays because the sum of losses is
-    #     # the same but the mean of losses is different.
-    #     y_true = y_true[:, :-1, :]  # Discard the last timestep/word (dummy)
-    #     y_pred = y_pred[:, :-1, :]  # Discard the last timestep/word (dummy)
-    #
-    #     # shape = tf.shape(y_true)
-    #     # y_true = tf.reshape(y_true, [-1, shape[-1]])
-    #     # y_pred = tf.reshape(y_pred, [-1, shape[-1]])
-    #     # is_zero_y_true = tf.equal(y_true, 0)
-    #     # is_zero_row_y_true = tf.reduce_all(is_zero_y_true, axis=-1)
-    #     # y_true = tf.boolean_mask(y_true, ~is_zero_row_y_true)
-    #     # y_pred = tf.boolean_mask(y_pred, ~is_zero_row_y_true)
-    #     _loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.argmax(y_true, axis=-1),
-    #                                                                          logits=y_pred)
-    #     true_label = tf.argmax(y_true, axis=-1)
-    #     y_w = tf.where(tf.greater(true_label, 0), tf.ones(shape=tf.shape(true_label)), tf.zeros(shape=tf.shape(true_label)))
-    #     loss = tf.reduce_mean(tf.multiply(y_w , _loss))
-    #     return loss
-    #     # loss = K.categorical_crossentropy(y_true, y_pred, from_logits=True)
-    #     # print(loss.shape)
-    #     # return  K.mean(loss)
-class ExternalAOAAttentionRNNWrapper(ExternalAttentionRNNWrapper):
-
-    def call(self, x, constants=None, mask=None, initial_state=None):
-        input_shape = self.input_spec[0].shape
-        if len(x) > 2:
-            x = x[:2]
-        static_x = x[1] # refined image features
-        x = x[0]
-        if self.layer.stateful:
-            initial_states = self.layer.states
-        elif initial_state is not None:
-            initial_states = initial_state
-            if not isinstance(initial_states, (list, tuple)):
-                initial_states = [initial_states]
-        else:
-            # the frist initial_state cache the ht and mt
-            # the second initial_state cache the last output and the context
-            initial_states = self.layer.get_initial_state(x) +self.layer.get_initial_state(x)
-        if not constants:
-            constants = []
-        constants += self.get_constants(static_x)
-        last_output, outputs, states = K.rnn(
-            self.step,
-            x,
-            initial_states,
-            go_backwards=self.layer.go_backwards,
-            mask=mask,
-            constants=constants,
-            unroll=self.layer.unroll,
-            input_length=input_shape[1]
-        )
-
-
-        if self.layer.stateful:
-            self.updates = []
-            for i in range(len(states)):
-                self.updates.append((self.layer.states[i], states[i]))
-
-        if self.layer.return_sequences:
-            output = outputs
-        else:
-            output = last_output
-
-        if getattr(last_output, '_uses_learning_phase', False):
-            output._uses_learning_phase = True
-            for state in states:
-                state._uses_learning_phase = True
-
-        if self.layer.return_state:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
-            else:
-                states = list(states)[0:2]
-            output = [output] + states
-
-        return output
-
-    def build(self, input_shape):
-        '''
-
-        :param input_shape: The input contains [captions_embedding, aoa refined image features]
-         constant is the mean of the refined image features, which is global image feature add by the context feature of last step
-         and concatenated with the word embedding. [constant+context: word embedding]
-        '''
-        super(ExternalAttentionRNNWrapper, self).build(input_shape)
-        self.built = True
-        print('aoa external attention input shape',
-              input_shape)  # [(None, None, feature_dim), (None, num_feature, feature_dim), (None, feature_dim)]
-        for i, x in enumerate(input_shape):
-            self.input_spec[i] = InputSpec(shape=x)
-
-        if self.layer.return_sequences:
-            self.hidden_dim = self.layer.compute_output_shape(input_shape[0])[0][-1]
-        else:
-            self.hidden_dim = self.layer.compute_output_shape(input_shape[0])[-1]
-        self.feature_dim = input_shape[1][-1]
-        self.embedding_dim = input_shape[0][-1]
-        self._num_head = 8
-        self._d_k = self.hidden_dim//self._num_head
-        self._normalizer = np.sqrt(self._d_k*1.0)
-        if not self.layer.built:
-            self.layer.build((None, None, 2*self.embedding_dim))
-            self.layer.built = True
-
-        # linear transformation, to project the image features to value and key
-        self.img_feature_value_proj_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
-                                                     name="{}_aoa_input_feature_value_proj_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.img_feature_value_proj_bias = self.add_weight(shape=(self.hidden_dim, ),
-                                                     name="{}_aoa_input_feature_value_proj_b".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.img_feature_key_proj_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
-                                                             name="{}_aoa_input_feature_key_proj_w".format(self.name),
-                                                             initializer=self.weight_initializer)
-
-        self.img_feature_key_proj_bias = self.add_weight(shape=(self.hidden_dim,),
-                                                           name="{}_aoa_input_feature_key_proj_b".format(self.name),
-                                                           initializer=self.weight_initializer)
-
-        self._q_proj_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="{}_q_proj_w".format(self.name),
-                                    initializer=self.weight_initializer)
-        self._q_proj_layer_bias = self.add_weight(shape=(self.hidden_dim,), name="{}_q_proj_b".format(self.name),
-                                    initializer='zeros')
-        # multi-head weights
-
-        self.aoa_glu_projq_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
-                                                     name="{}_aoa_glu_projq_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_gateq_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
-                                                     name="{}_aoa_glu_gateq_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_projh_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
-                                                     name="{}_aoa_glu_projh_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_gateh_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
-                                                     name="{}_aoa_glu_gateh_w".format(self.name),
-                                                     initializer=self.weight_initializer)
-
-        self.aoa_glu_gate_layer_bias = self.add_weight(shape=(self.hidden_dim,),
-                                                   name="{}_aoa_glu_gate_b".format(self.name),
-                                                   initializer='zeros')
-        self.aoa_glu_proj_layer_bias = self.add_weight(shape=(self.hidden_dim,),
-                                                     name="{}_aoa_glu_proj_b".format(self.name),
-                                                     initializer='zeros')
-
-
-    def multi_head_attention(self, query, value, key):
-        query = K.normalize_batch_in_training(query, None, None, reduction_axes=[0])[0]
-        print(query.shape)
-        # the we reshap the projected q,k v into multihead fatures
-        # the shape is (batch size, num_features, num_head, d_k )
-        p_query = K.dot(query, self._q_proj_layer_weight) + self._q_proj_layer_bias
-        p_query = K.reshape(p_query, (-1, 1, self._num_head, self._d_k))
-        p_key = K.reshape(key, (-1, key.shape[1], self._num_head, self._d_k))
-        p_value = K.reshape(value, (-1, value.shape[1], self._num_head, self._d_k))
-        print('p_query',p_query.shape)
-        print('p_value', p_value.shape)
-        print('p_key', p_key.shape)
-        # we permute the dimension of q, k, v
-        # the shape is (batch size, number_head, num_feature, d_k)
-        p_query = K.permute_dimensions(p_query, (0, 2, 1, 3))
-        p_key = K.permute_dimensions(p_key, (0, 2, 3, 1))
-        p_value = K.permute_dimensions(p_value, (0, 2, 1, 3))
-        print('p_query',p_query.shape)
-        print('p_value', p_value.shape)
-        print('p_key', p_key.shape)
-        # then we implement the transformer style attention, QK^T/sqrt(d_k) refer K.batch_dot
-        # normalizer = K.sqrt(K.constant(self._d_k))  # with normalizer performs better in the original paper
-        # print(self._d_k, normalizer)
-        # we use K.batch_dot and the last axes is used for dot product
-        # note that the result of -1 and the results of [3,3] are different, we should use the positive int number
-        axes_dot = len(p_query.shape) - 1  # (3)
-
-        # this step is Q K^T
-        similarity = K.batch_dot(p_query, p_key, axes=[axes_dot,
-                                                       axes_dot-1])  # shape (batch_size, number_head, number_feature, number_feature)
-        # this step applies the normalizer of sqrt(d_k)
-        print('sim', similarity.shape)
-        similarity = similarity / self._normalizer
-        # calculate the attention for each feature, softmax along the last axis
-        p_attention = K.softmax(similarity, axis=-1)  # shape (batch_size, number_head, number_feature, number_feature)
-        # the attention is multiplied on the value to generate the weighted value
-        # shape (batch size, num_head, num_features, d_k)
-        print('pattention', p_attention.shape)
-        hat_value = K.batch_dot(p_attention, p_value,
-                                axes=[axes_dot, axes_dot - 1])  # shape (batch_size, number_head, number_feature, d_k)
-
-        # we need to concate the weighted feature of each head
-        # shape (batch size, num_features, num_head, d_k)
-        hat_value = K.permute_dimensions(hat_value, (0, 2, 1, 3))
-        print('hat_value', hat_value.shape)
-        # then we reshape hat_value to concatenate the feature of each head
-        # shape (batch size, num_features, value_dim)
-        hat_value = K.reshape(hat_value, (-1, hat_value.shape[1], self._num_head * self._d_k))
-        print('hat_value', hat_value.shape)
-        hat_value = K.squeeze(hat_value,axis=1)
-        print('hat_value', hat_value.shape)
-        hat_value = Dropout(rate=0.3)(hat_value)
-        query = Dropout(rate=0.3)(query)
-        # aoa_proj_q_v = self.aoa_proj_layer(q_v_concate)
-        # aoa_gate = K.sigmoid(self.aoa_gate_layer(q_v_concate))
-        aoa_proj_q_v = K.dot(query, self.aoa_glu_projq_layer_weight) + K.dot(hat_value, self.aoa_glu_projh_layer_weight) + self.aoa_glu_proj_layer_bias
-        aoa_gate = K.sigmoid(K.dot(query, self.aoa_glu_gateq_layer_weight) + K.dot(hat_value, self.aoa_glu_gateh_layer_weight) + self.aoa_glu_gate_layer_bias)
-        print('aoa_gate', aoa_gate.shape)
-        print('aoa_proj_q_v', aoa_proj_q_v.shape)
-        hat_value = aoa_gate * aoa_proj_q_v
-        return hat_value
-
-    def step(self, x, states):
-        htm1 = states[0] # 512
-        # print('htm1', htm1.shape)
-        ctm1 = states[1] # 512
-        # print('ctm1', ctm1.shape)
-        contextm1 = states[2] # 512
-        # print('conte1', contextm1.shape)
-        outputm1 = states[3] # 512
-        # print('outputm1', outputm1.shape)
-        # the constant states
-        global_img_feature = states[4]  # 512
-        # print('gif1', global_img_feature.shape)
-        proj_value = states[5]  #  L, 512
-        # print('projva', proj_value.shape)
-        proj_key = states[6]   # L, 512
-        # print('projke', proj_key.shape)
-        # print('global_img_feature', global_img_feature.shape)
-        input_x = K.concatenate([x, global_img_feature+K.dropout(contextm1, 0.5)], axis=-1)
-        # print('input_x', input_x.shape)
-        ht, new_states = self.layer.cell.call(input_x, states[:2])
-        # print('ht', ht.shape)
-        ct = new_states[1]
-        # print('ct', ct.shape)
-        context = self.multi_head_attention(ht, proj_value, proj_key)
-
-        # print('context', context.shape)
-        return_state = [ht, ct, context, context+ht]
-        output = K.dropout(context, 0.5)
-        # print('out', output.shape)
-        return output, return_state
-
-    def get_constants(self, x):
-        # add constants to speed up calculation
-        x_value_project = K.dot(x, self.img_feature_value_proj_weight) + self.img_feature_value_proj_bias
-        x_key_project = K.dot(x, self.img_feature_key_proj_weight) + self.img_feature_key_proj_bias
-        return [x_value_project, x_key_project]
+# class MultiHeadAttention(keras.layers.Layer):
+#
+#     def __init__(self, num_head, input_dim, norm_q=0, drop_out_rate=0.3, **kwargs):
+#         super(MultiHeadAttention, self).__init__(**kwargs)
+#         self._drop_out_rate = drop_out_rate
+#         self._num_head = num_head
+#         self._input_dim = input_dim
+#         assert input_dim % num_head == 0
+#         self._d_k = input_dim // num_head
+#         # self._norm = LayerNorm(input_dim)
+#         self._norm = lambda x:x
+#         self.weight_initializer = 'glorot_uniform'
+#
+#     def build(self, input_shape):
+#         super(MultiHeadAttention, self).build(input_shape)
+#         self._q_proj_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim), name="{}_q_proj_w".format(self.name),
+#                                     initializer=self.weight_initializer)
+#         self._k_proj_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim), name="{}_k_proj_w".format(self.name),
+#                                     initializer=self.weight_initializer)
+#         self._v_proj_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim), name="{}_v_proj_w".format(self.name),
+#                                     initializer=self.weight_initializer)
+#
+#         self._q_proj_layer_bias = self.add_weight(shape=(self._input_dim,), name="{}_q_proj_b".format(self.name),
+#                                     initializer='zeros')
+#
+#         self._k_proj_layer_bias = self.add_weight(shape=(self._input_dim,), name="{}_k_proj_b".format(self.name),
+#                                                  initializer='zeros')
+#
+#         self._v_proj_layer_bias = self.add_weight(shape=(self._input_dim,), name="{}_v_proj_b".format(self.name),
+#                                                  initializer='zeros')
+#
+#         self.aoa_glu_projq_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
+#                                                      name="{}_aoa_glu_projq_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_gateq_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
+#                                                      name="{}_aoa_glu_gateq_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_projh_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
+#                                                      name="{}_aoa_glu_projh_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_gateh_layer_weight = self.add_weight(shape=(self._input_dim, self._input_dim),
+#                                                      name="{}_aoa_glu_gateh_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_gate_layer_bias = self.add_weight(shape=(self._input_dim,),
+#                                                    name="{}_aoa_glu_gate_b".format(self.name),
+#                                                    initializer='zeros')
+#         self.aoa_glu_proj_layer_bias = self.add_weight(shape=(self._input_dim,),
+#                                                      name="{}_aoa_glu_proj_b".format(self.name),
+#                                                      initializer='zeros')
+#         self.built = True
+#
+#     def call(self, inputs, **kwargs):
+#         # the dim of query , key, and value should be the same
+#         # and we seperate the q, k v into several heads.
+#         # for example if the query shape is (None, 196, 512) and the head number is 8
+#         # the query is reshaped into (None, 196, 8, 64), where 64 is denoted as self._d_k which is the
+#         # feature dimension of the multiheadattention process.
+#         # this is the reasion we require that  input_dim // num_head == 0
+#         query = inputs[0]  # shape (batch_size, num_feature, query_dim)
+#         key = inputs[1]  # shape (batch_size, num_feature, key_dim)
+#         value = inputs[2]  # shape (batch_size, num_feature, value_dim)
+#
+#         # normalized the query
+#         query = self._norm(query)
+#         # we first project the q, k, v, the output shape is the same as the original ones
+#         # p_query = self._q_proj_layer(query)  # shape (batch_size, num_feature, query_dim)
+#         # p_key = self._k_proj_layer(key)  # shape (batch_size, num_feature, key_dim)
+#         # p_value = self._v_proj_layer(value)  # shape (batch_size, num_feature, value_dim)
+#         p_query = K.dot(query, self._q_proj_layer_weight) + self._q_proj_layer_bias
+#         p_key = K.dot(key, self._k_proj_layer_weight) + self._k_proj_layer_bias
+#         p_value = K.dot(value, self._v_proj_layer_weight) + self._v_proj_layer_bias
+#         # print(p_query.shape)
+#         # the we reshap the projected q,k v into multihead fatures
+#         # the shape is (batch size, num_features, num_head, d_k )
+#         p_query = K.reshape(p_query, (-1, p_query.shape[1], self._num_head, self._d_k))
+#         p_key = K.reshape(p_key, (-1, p_key.shape[1], self._num_head, self._d_k))
+#         p_value = K.reshape(p_value, (-1, p_value.shape[1], self._num_head, self._d_k))
+#
+#         # we permute the dimension of q, k, v
+#         # the shape is (batch size, number_head, num_feature, d_k)
+#         p_query = K.permute_dimensions(p_query, (0, 2, 1, 3))
+#         p_key = K.permute_dimensions(p_key, (0, 2, 3, 1))
+#         p_value = K.permute_dimensions(p_value, (0, 2, 1, 3))
+#         # then we implement the transformer style attention, QK^T/sqrt(d_k) refer K.batch_dot
+#         normalizer = np.sqrt(self._d_k)  # with normalizer performs better in the original paper
+#         # we use K.batch_dot and the last axes is used for dot product
+#         # note that the result of -1 and the results of [3,3] are different, we should use the positive int number
+#         axes_dot = len(p_query.shape) - 1  # (3)
+#
+#         # this step is Q K^T
+#         similarity = K.batch_dot(p_query, p_key, axes=[axes_dot,
+#                                                        axes_dot-1])  # shape (batch_size, number_head, number_feature, number_feature)
+#         # this step applies the normalizer of sqrt(d_k)
+#         similarity = similarity / normalizer
+#         # calculate the attention for each feature, softmax along the last axis
+#         p_attention = K.softmax(similarity, axis=-1) # shape (batch_size, number_head, number_feature, number_feature)
+#         # the attention is multiplied on the value to generate the weighted value
+#         # shape (batch size, num_head, num_features, d_k)
+#         hat_value = K.batch_dot(p_attention, p_value, axes=[axes_dot, axes_dot - 1]) # shape (batch_size, number_head, number_feature, d_k)
+#
+#         # we need to concate the weighted feature of each head
+#         # shape (batch size, num_features, num_head, d_k)
+#         hat_value = K.permute_dimensions(hat_value, (0, 2, 1, 3))
+#         # then we reshape hat_value to concatenate the feature of each head
+#         # shape (batch size, num_features, value_dim)
+#         hat_value = K.reshape(hat_value, (-1, hat_value.shape[1], self._num_head * self._d_k))
+#
+#         hat_value = Dropout(rate=self._drop_out_rate)(hat_value)
+#         query = Dropout(rate=self._drop_out_rate)(query)
+#         # aoa_proj_q_v = self.aoa_proj_layer(q_v_concate)
+#         # aoa_gate = K.sigmoid(self.aoa_gate_layer(q_v_concate))
+#         aoa_proj_q_v = K.dot(query, self.aoa_glu_projq_layer_weight) + K.dot(hat_value, self.aoa_glu_projh_layer_weight) + self.aoa_glu_proj_layer_bias
+#         aoa_gate = K.sigmoid(K.dot(query, self.aoa_glu_gateq_layer_weight) + K.dot(hat_value, self.aoa_glu_gateh_layer_weight) + self.aoa_glu_gate_layer_bias)
+#         hat_value = aoa_gate * aoa_proj_q_v
+#         hat_value = K.normalize_batch_in_training(hat_value, None, None, reduction_axes=[0,2])[0]
+#         hat_value = K.dropout(hat_value, 0.3)
+#         return hat_value + query
+#
+#     def compute_output_shape(self, input_shape):
+#         return input_shape[0]
+# class AOAattentionmodel(ImgCaptioningAttentionModel):
+#
+#     def __init__(self, config, multi_head_num=8, encoder_refine_num=0):
+#         super(AOAattentionmodel, self).__init__(config)
+#         self.multi_head_num = multi_head_num
+#         self.encoder_refine_num = encoder_refine_num
+#
+#     def _build_image_embedding(self):
+#         if self.img_encoder == 'vgg16':
+#             base_model = VGG16(include_top=False, weights='imagenet')
+#         elif self.img_encoder == 'vgg19':
+#             base_model = VGG19(include_top=False, weights='imagenet')
+#         elif self.img_encoder == 'inception_v3':
+#             base_model = InceptionV3(include_top=False, weights='imagenet')
+#         elif self.img_encoder == 'resnet50':
+#             base_model = ResNet50(include_top=False, weights='imagenet')
+#         elif self.img_encoder == 'resnet101':
+#             base_model = ResNet101(include_top=False, weights='imagenet', backend=keras.backend, layers=keras.layers,
+#                                    models=keras.models, utils=keras.utils)
+#         else:
+#             raise ValueError("not implemented encoder type")
+#         self.image_model = Model(inputs=base_model.input, outputs=base_model.get_layer(self.layer_name).output)
+#         for layer in self.image_model.layers:
+#             layer.trainable = True
+#         image_embedding = Reshape((self.L, self.D))(self.image_model.output)
+#         return self.image_model.input, image_embedding
+#
+#     def build(self, vocabs, vocab_size):
+#         # print('here_attention_model_2')
+#         self.image_input, self.image_features_input = self._build_image_embedding()
+#         self.aoa_refine_layers = []
+#
+#         self.image_features_input = BatchNormalization()(self.image_features_input)
+#         self.image_features = Dense(self._hidden_dim, activation='relu', name="image_features")(
+#             self.image_features_input)
+#         self.image_features = Dropout(rate=self._dropout_rate)(self.image_features)
+#         # self.image_features = BatchNormalization()(self.image_features)
+#         self.global_image_feature = Lambda(lambda x: K.mean(x, axis=1))(self.image_features)
+#         self.captions_input, self.captions = self._build_word_embedding(vocabs, vocab_size)
+#         if self.encoder_refine_num > 0:
+#             for i in range(self.encoder_refine_num):
+#                 self.aoa_refine_layers.append(MultiHeadAttention(self.multi_head_num, self._hidden_dim, name='multi_head_encoder_{}'.format(i)))
+#             for i in range(self.encoder_refine_num):
+#                 self.image_features = self.aoa_refine_layers[i](
+#                     [self.image_features, self.image_features, self.image_features])
+#                 self.image_features = BatchNormalization()(self.image_features)
+#                 self.image_features = Dropout(rate=self._dropout_rate)(self.image_features)
+#
+#         self.image_features = BatchNormalization()(self.image_features)
+#
+#         self.encoder = LSTM(self._hidden_dim, return_sequences=True, return_state=True,
+#                             recurrent_dropout=self._dropout_rate, activation='tanh', recurrent_activation='sigmoid',
+#                             dropout=self._dropout_rate)
+#         self.attented_encoder = ExternalAOAAttentionRNNWrapper(self.encoder, return_attention=False)
+#         self.output = TimeDistributed(Dense(self._vocab_size), name="output")
+#
+#         self.attented_encoder_training_data, s1, s2= self.attented_encoder(
+#             [self.captions, self.image_features], constants=[self.global_image_feature])
+#         self.attented_encoder_training_data = Dropout(rate=self._dropout_rate)(self.attented_encoder_training_data)
+#
+#         self.training_output_data = self.output(self.attented_encoder_training_data)
+#         self.training_output_data = Dropout(rate=self._dropout_rate)(self.training_output_data)
+#
+#         self.training_model = Model(inputs=[self.captions_input, self.image_input], outputs=self.training_output_data)
+#
+#         self.training_model.compile(optimizer=Adam(lr=self._learning_rate, clipvalue=0.1),
+#                                     loss=[self.categorical_crossentropy_from_logits],
+#                                     metrics=[self.categorical_accuracy_with_variable_timestep])
+#         self.training_model.summary()
+#
+# class ExternalAOAAttentionRNNWrapper(ExternalAttentionRNNWrapper):
+#
+#     def call(self, x, constants=None, mask=None, initial_state=None):
+#         input_shape = self.input_spec[0].shape
+#         if len(x) > 2:
+#             x = x[:2]
+#         static_x = x[1] # refined image features
+#         x = x[0]
+#         if self.layer.stateful:
+#             initial_states = self.layer.states
+#         elif initial_state is not None:
+#             initial_states = initial_state
+#             if not isinstance(initial_states, (list, tuple)):
+#                 initial_states = [initial_states]
+#         else:
+#             # the frist initial_state cache the ht and mt
+#             # the second initial_state cache the last output and the context
+#             initial_states = self.layer.get_initial_state(x) +self.layer.get_initial_state(x)
+#         if not constants:
+#             constants = []
+#         constants += self.get_constants(static_x)
+#         last_output, outputs, states = K.rnn(
+#             self.step,
+#             x,
+#             initial_states,
+#             go_backwards=self.layer.go_backwards,
+#             mask=mask,
+#             constants=constants,
+#             unroll=self.layer.unroll,
+#             input_length=input_shape[1]
+#         )
+#
+#
+#         if self.layer.stateful:
+#             self.updates = []
+#             for i in range(len(states)):
+#                 self.updates.append((self.layer.states[i], states[i]))
+#
+#         if self.layer.return_sequences:
+#             output = outputs
+#         else:
+#             output = last_output
+#
+#         if getattr(last_output, '_uses_learning_phase', False):
+#             output._uses_learning_phase = True
+#             for state in states:
+#                 state._uses_learning_phase = True
+#
+#         if self.layer.return_state:
+#             if not isinstance(states, (list, tuple)):
+#                 states = [states]
+#             else:
+#                 states = list(states)[0:2]
+#             output = [output] + states
+#
+#         return output
+#
+#     def build(self, input_shape):
+#         '''
+#
+#         :param input_shape: The input contains [captions_embedding, aoa refined image features]
+#          constant is the mean of the refined image features, which is global image feature add by the context feature of last step
+#          and concatenated with the word embedding. [constant+context: word embedding]
+#         '''
+#         super(ExternalAttentionRNNWrapper, self).build(input_shape)
+#         self.built = True
+#         print('aoa external attention input shape',
+#               input_shape)  # [(None, None, feature_dim), (None, num_feature, feature_dim), (None, feature_dim)]
+#         for i, x in enumerate(input_shape):
+#             self.input_spec[i] = InputSpec(shape=x)
+#
+#         if self.layer.return_sequences:
+#             self.hidden_dim = self.layer.compute_output_shape(input_shape[0])[0][-1]
+#         else:
+#             self.hidden_dim = self.layer.compute_output_shape(input_shape[0])[-1]
+#         self.feature_dim = input_shape[1][-1]
+#         self.embedding_dim = input_shape[0][-1]
+#         self._num_head = 8
+#         self._d_k = self.hidden_dim//self._num_head
+#         self._normalizer = np.sqrt(self._d_k*1.0)
+#         if not self.layer.built:
+#             self.layer.build((None, None, 2*self.embedding_dim))
+#             self.layer.built = True
+#
+#         # linear transformation, to project the image features to value and key
+#         self.img_feature_value_proj_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
+#                                                      name="{}_aoa_input_feature_value_proj_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.img_feature_value_proj_bias = self.add_weight(shape=(self.hidden_dim, ),
+#                                                      name="{}_aoa_input_feature_value_proj_b".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.img_feature_key_proj_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
+#                                                              name="{}_aoa_input_feature_key_proj_w".format(self.name),
+#                                                              initializer=self.weight_initializer)
+#
+#         self.img_feature_key_proj_bias = self.add_weight(shape=(self.hidden_dim,),
+#                                                            name="{}_aoa_input_feature_key_proj_b".format(self.name),
+#                                                            initializer=self.weight_initializer)
+#
+#         self._q_proj_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim), name="{}_q_proj_w".format(self.name),
+#                                     initializer=self.weight_initializer)
+#         self._q_proj_layer_bias = self.add_weight(shape=(self.hidden_dim,), name="{}_q_proj_b".format(self.name),
+#                                     initializer='zeros')
+#         # multi-head weights
+#
+#         self.aoa_glu_projq_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
+#                                                      name="{}_aoa_glu_projq_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_gateq_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
+#                                                      name="{}_aoa_glu_gateq_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_projh_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
+#                                                      name="{}_aoa_glu_projh_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_gateh_layer_weight = self.add_weight(shape=(self.hidden_dim, self.hidden_dim),
+#                                                      name="{}_aoa_glu_gateh_w".format(self.name),
+#                                                      initializer=self.weight_initializer)
+#
+#         self.aoa_glu_gate_layer_bias = self.add_weight(shape=(self.hidden_dim,),
+#                                                    name="{}_aoa_glu_gate_b".format(self.name),
+#                                                    initializer='zeros')
+#         self.aoa_glu_proj_layer_bias = self.add_weight(shape=(self.hidden_dim,),
+#                                                      name="{}_aoa_glu_proj_b".format(self.name),
+#                                                      initializer='zeros')
+#
+#
+#     def multi_head_attention(self, query, value, key):
+#         query = K.normalize_batch_in_training(query, None, None, reduction_axes=[0])[0]
+#         print(query.shape)
+#         # the we reshap the projected q,k v into multihead fatures
+#         # the shape is (batch size, num_features, num_head, d_k )
+#         p_query = K.dot(query, self._q_proj_layer_weight) + self._q_proj_layer_bias
+#         p_query = K.reshape(p_query, (-1, 1, self._num_head, self._d_k))
+#         p_key = K.reshape(key, (-1, key.shape[1], self._num_head, self._d_k))
+#         p_value = K.reshape(value, (-1, value.shape[1], self._num_head, self._d_k))
+#         print('p_query',p_query.shape)
+#         print('p_value', p_value.shape)
+#         print('p_key', p_key.shape)
+#         # we permute the dimension of q, k, v
+#         # the shape is (batch size, number_head, num_feature, d_k)
+#         p_query = K.permute_dimensions(p_query, (0, 2, 1, 3))
+#         p_key = K.permute_dimensions(p_key, (0, 2, 3, 1))
+#         p_value = K.permute_dimensions(p_value, (0, 2, 1, 3))
+#         print('p_query',p_query.shape)
+#         print('p_value', p_value.shape)
+#         print('p_key', p_key.shape)
+#         # then we implement the transformer style attention, QK^T/sqrt(d_k) refer K.batch_dot
+#         # normalizer = K.sqrt(K.constant(self._d_k))  # with normalizer performs better in the original paper
+#         # print(self._d_k, normalizer)
+#         # we use K.batch_dot and the last axes is used for dot product
+#         # note that the result of -1 and the results of [3,3] are different, we should use the positive int number
+#         axes_dot = len(p_query.shape) - 1  # (3)
+#
+#         # this step is Q K^T
+#         similarity = K.batch_dot(p_query, p_key, axes=[axes_dot,
+#                                                        axes_dot-1])  # shape (batch_size, number_head, number_feature, number_feature)
+#         # this step applies the normalizer of sqrt(d_k)
+#         print('sim', similarity.shape)
+#         similarity = similarity / self._normalizer
+#         # calculate the attention for each feature, softmax along the last axis
+#         p_attention = K.softmax(similarity, axis=-1)  # shape (batch_size, number_head, number_feature, number_feature)
+#         # the attention is multiplied on the value to generate the weighted value
+#         # shape (batch size, num_head, num_features, d_k)
+#         print('pattention', p_attention.shape)
+#         hat_value = K.batch_dot(p_attention, p_value,
+#                                 axes=[axes_dot, axes_dot - 1])  # shape (batch_size, number_head, number_feature, d_k)
+#
+#         # we need to concate the weighted feature of each head
+#         # shape (batch size, num_features, num_head, d_k)
+#         hat_value = K.permute_dimensions(hat_value, (0, 2, 1, 3))
+#         print('hat_value', hat_value.shape)
+#         # then we reshape hat_value to concatenate the feature of each head
+#         # shape (batch size, num_features, value_dim)
+#         hat_value = K.reshape(hat_value, (-1, hat_value.shape[1], self._num_head * self._d_k))
+#         print('hat_value', hat_value.shape)
+#         hat_value = K.squeeze(hat_value,axis=1)
+#         print('hat_value', hat_value.shape)
+#         hat_value = Dropout(rate=0.3)(hat_value)
+#         query = Dropout(rate=0.3)(query)
+#         # aoa_proj_q_v = self.aoa_proj_layer(q_v_concate)
+#         # aoa_gate = K.sigmoid(self.aoa_gate_layer(q_v_concate))
+#         aoa_proj_q_v = K.dot(query, self.aoa_glu_projq_layer_weight) + K.dot(hat_value, self.aoa_glu_projh_layer_weight) + self.aoa_glu_proj_layer_bias
+#         aoa_gate = K.sigmoid(K.dot(query, self.aoa_glu_gateq_layer_weight) + K.dot(hat_value, self.aoa_glu_gateh_layer_weight) + self.aoa_glu_gate_layer_bias)
+#         print('aoa_gate', aoa_gate.shape)
+#         print('aoa_proj_q_v', aoa_proj_q_v.shape)
+#         hat_value = aoa_gate * aoa_proj_q_v
+#         return hat_value
+#
+#     def step(self, x, states):
+#         htm1 = states[0] # 512
+#         # print('htm1', htm1.shape)
+#         ctm1 = states[1] # 512
+#         # print('ctm1', ctm1.shape)
+#         contextm1 = states[2] # 512
+#         # print('conte1', contextm1.shape)
+#         outputm1 = states[3] # 512
+#         # print('outputm1', outputm1.shape)
+#         # the constant states
+#         global_img_feature = states[4]  # 512
+#         # print('gif1', global_img_feature.shape)
+#         proj_value = states[5]  #  L, 512
+#         # print('projva', proj_value.shape)
+#         proj_key = states[6]   # L, 512
+#         # print('projke', proj_key.shape)
+#         # print('global_img_feature', global_img_feature.shape)
+#         input_x = K.concatenate([x, global_img_feature], axis=-1)
+#         # print('input_x', input_x.shape)
+#         ht, new_states = self.layer.cell.call(input_x, states[:2])
+#         # print('ht', ht.shape)
+#         ct = new_states[1]
+#         # print('ct', ct.shape)
+#         context = self.multi_head_attention(ht, proj_value, proj_key)
+#
+#         # print('context', context.shape)
+#         return_state = [ht, ct, context, context+ht]
+#         # output = K.dropout(context, 0.5)
+#         # print('out', output.shape)
+#         return context+ht, return_state
+#
+#     def get_constants(self, x):
+#         # add constants to speed up calculation
+#         x_value_project = K.dot(x, self.img_feature_value_proj_weight) + self.img_feature_value_proj_bias
+#         x_key_project = K.dot(x, self.img_feature_key_proj_weight) + self.img_feature_key_proj_bias
+#         return [x_value_project, x_key_project]
 
 # LRP inference model, adding the LRP weighted predicted scores, model weights are updated after training each batch
 # The LRP weights are set as an Input tensor, the gradients are not backwards through the LRP algorithm

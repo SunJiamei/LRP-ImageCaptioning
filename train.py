@@ -676,8 +676,9 @@ class TrainingLRPInferenceGridTD(Training):
 MODELTYPE = {'adaptiveattention':TrainingAdaptiveAttention, 'gridTD':TrainingGridTD, 'AOA':TrainingAOA}
 
 
-def main_attention(config, dataset, training_label, model_type,log_metrics_period=1):
-    training = MODELTYPE[model_type](config, dataset, training_label=training_label, log_metrics_period=log_metrics_period)
+def main_attention(config, dataset, training_label, model_type,model_weights_path,log_metrics_period=1):
+    training = MODELTYPE[model_type](config, dataset, training_label=training_label, model_weights_path=model_weights_path,log_metrics_period=log_metrics_period)
+
     training.run()
 
 
@@ -688,7 +689,8 @@ if __name__ == '__main__':
     # to train from scratch
     flickr_config = config.FlickrConfig()
     dataset = Flickr30kDataset(flickr_config)
-    main_attention(flickr_config,dataset,'flickr_VGG16_AOA/', 'AOA')
+    model_weight_path = './results/flickr30k/training-results/flickr_VGG16_AOA/keras_model_19_0.3174.hdf5'
+    main_attention(flickr_config,dataset,'flickr_VGG16_AOA_finetune/', 'AOA', model_weights_path=model_weight_path)
 
 
     # to finetune with LRP inference
